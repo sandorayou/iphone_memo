@@ -1,7 +1,6 @@
 import Foundation
 @preconcurrency import AVFoundation
 @preconcurrency import Speech
-import AudioToolbox
 import Combine
 
 @MainActor
@@ -16,7 +15,6 @@ final class SpeechRecorder: ObservableObject {
     private var transcriber: SpeechTranscriber?
     private var dictationTranscriber: DictationTranscriber?
     private var analyzer: SpeechAnalyzer?
-    private var converter: AnalyzerInputConverter?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var analysisTask: Task<Void, Never>?
     private var resultTask: Task<Void, Never>?
@@ -142,15 +140,9 @@ final class SpeechRecorder: ObservableObject {
             try await request.downloadAndInstall()
         }
 
-        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else {
-            throw RecorderError.speechAssetsUnavailable
-        }
-
-        let converter = AnalyzerInputConverter(analyzerFormat: analyzerFormat)
         let analyzer = SpeechAnalyzer(modules: [module])
         let (inputSequence, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
 
-        self.converter = converter
         self.analyzer = analyzer
         self.inputBuilder = inputBuilder
 
@@ -189,10 +181,7 @@ final class SpeechRecorder: ObservableObject {
         }
 
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-            // The tap callback owns the incoming buffer only for the callback's work.
-            // Make a detached copy before handing it to another asynchronous task.
-            guard let detached = Self.detachedCopy(of: buffer) else { return }
-            continuation.yield(detached)
+            continuation.yield(buffer)
         }
 
         tapInstalled = true
@@ -201,38 +190,8 @@ final class SpeechRecorder: ObservableObject {
     }
 
     private func pushAudioBuffer(_ buffer: AVAudioPCMBuffer) async {
-        guard let converter, let inputBuilder else { return }
-        do {
-            let inputs = try converter.convert(buffer, at: nil)
-            for input in inputs {
-                inputBuilder.yield(input)
-            }
-        } catch {
-            errorText = "音声変換エラー: \(error.localizedDescription)"
-        }
-    }
-
-    nonisolated private static func detachedCopy(of source: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let copy = AVAudioPCMBuffer(
-            pcmFormat: source.format,
-            frameCapacity: source.frameLength
-        ) else { return nil }
-
-        copy.frameLength = source.frameLength
-        let sourceBuffers = UnsafeAudioBufferListPointer(source.audioBufferList)
-        let destinationBuffers = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
-        guard sourceBuffers.count == destinationBuffers.count else { return nil }
-
-        for index in sourceBuffers.indices {
-            let sourceBuffer = sourceBuffers[index]
-            guard let sourceData = sourceBuffer.mData,
-                  let destinationData = destinationBuffers[index].mData else { continue }
-
-            let byteCount = Int(sourceBuffer.mDataByteSize)
-            destinationData.copyMemory(from: UnsafeRawPointer(sourceData), byteCount: byteCount)
-            destinationBuffers[index].mDataByteSize = sourceBuffer.mDataByteSize
-        }
-        return copy
+        guard let inputBuilder else { return }
+        inputBuilder.yield(AnalyzerInput(buffer: buffer))
     }
 
     private func stopInternal() async {
@@ -251,12 +210,7 @@ final class SpeechRecorder: ObservableObject {
         await audioPumpTask?.value
         audioPumpTask = nil
 
-        if let converter, let inputBuilder {
-            if let flushed = try? converter.flush() {
-                for input in flushed {
-                    inputBuilder.yield(input)
-                }
-            }
+        if let inputBuilder {
             inputBuilder.finish()
         }
 
@@ -267,7 +221,6 @@ final class SpeechRecorder: ObservableObject {
         analysisTask = nil
         resultTask = nil
         inputBuilder = nil
-        converter = nil
         transcriber = nil
         dictationTranscriber = nil
         analyzer = nil
