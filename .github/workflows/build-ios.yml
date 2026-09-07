@@ -25,7 +25,7 @@ jobs:
             -target VoiceMemory \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CONFIGURATION_BUILD_DIR="$RUNNER_TEMP/App" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
@@ -34,7 +34,7 @@ jobs:
         run: |
           rm -rf "$RUNNER_TEMP/Payload"
           mkdir -p "$RUNNER_TEMP/Payload"
-          cp -R "$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/VoiceMemory.app" "$RUNNER_TEMP/Payload/"
+          cp -R "$RUNNER_TEMP/App/VoiceMemory.app" "$RUNNER_TEMP/Payload/"
           cd "$RUNNER_TEMP"
           ditto -c -k --sequesterRsrc --keepParent Payload VoiceMemory-unsigned.ipa
 
