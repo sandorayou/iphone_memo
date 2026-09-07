@@ -14,7 +14,7 @@ struct VoiceMemoryApp: App {
     }
 }
 
-final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = ForegroundNotificationDelegate()
 
     func userNotificationCenter(

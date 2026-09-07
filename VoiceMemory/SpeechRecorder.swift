@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import AVFoundation
 @preconcurrency import Speech
+import AudioToolbox
 import Combine
 
 @MainActor
