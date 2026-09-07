@@ -13,13 +13,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
 
       - name: Build unsigned app
-        working-directory: VoiceMemoryPrototype
         run: |
           xcodebuild \
             -project VoiceMemory.xcodeproj \
@@ -32,7 +31,6 @@ jobs:
             build
 
       - name: Package IPA
-        working-directory: VoiceMemoryPrototype
         run: |
           rm -rf "$RUNNER_TEMP/Payload"
           mkdir -p "$RUNNER_TEMP/Payload"
@@ -41,7 +39,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent Payload VoiceMemory-unsigned.ipa
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: VoiceMemory-unsigned-ipa
           path: ${{ runner.temp }}/VoiceMemory-unsigned.ipa
