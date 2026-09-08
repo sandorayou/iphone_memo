@@ -16,6 +16,26 @@ struct ContentView: View {
 
             TranscriptListView(store: coordinator.store)
                 .tabItem { Label("議事録", systemImage: "text.bubble") }
+
+            AIStatusLogView(store: coordinator.store)
+                .tabItem { Label("ログ", systemImage: "doc.text.magnifyingglass") }
+        }
+    }
+}
+
+private struct AIStatusLogView: View {
+    @ObservedObject var store: AppStore
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(store.aiStatusLog.isEmpty ? "まだAI整理を実行していません" : store.aiStatusLog)
+                    .font(.system(.footnote, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding()
+            }
+            .navigationTitle("AI利用ログ")
         }
     }
 }

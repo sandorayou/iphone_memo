@@ -6,6 +6,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var todos: [TodoItem] = []
     @Published private(set) var memos: [MemoItem] = []
     @Published private(set) var recentTranscript: [TranscriptEntry] = []
+    @Published private(set) var aiStatusLog = ""
 
     private let todosURL: URL
     private let memosURL: URL
@@ -135,6 +136,7 @@ final class AppStore: ObservableObject {
         if let data = try? Data(contentsOf: aiStatusURL), data.count > 64 * 1024 {
             try? Data(data.suffix(64 * 1024)).write(to: aiStatusURL, options: .atomic)
         }
+        aiStatusLog = (try? String(contentsOf: aiStatusURL, encoding: .utf8)) ?? aiStatusLog
     }
 
     private func pruneRecentTranscript() {
@@ -165,6 +167,7 @@ final class AppStore: ObservableObject {
             recentTranscript = value
             pruneRecentTranscript()
         }
+        aiStatusLog = (try? String(contentsOf: aiStatusURL, encoding: .utf8)) ?? ""
     }
 
     private func persistTodos() {
