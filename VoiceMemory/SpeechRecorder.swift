@@ -239,7 +239,33 @@ private nonisolated func installRealtimeAudioTap(
     continuation: AsyncStream<AVAudioPCMBuffer>.Continuation
 ) {
     node.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-        continuation.yield(buffer)
+        // AVAudioEngine may reuse the tap buffer after this callback returns.
+        // SpeechAnalyzer consumes asynchronously, so hand it an owned copy.
+        guard let copy = AVAudioPCMBuffer(
+            pcmFormat: buffer.format,
+            frameCapacity: buffer.frameLength
+        ) else { return }
+        copy.frameLength = buffer.frameLength
+        if let source = buffer.floatChannelData,
+           let destination = copy.floatChannelData {
+            for channel in 0..<Int(buffer.format.channelCount) {
+                destination[channel].update(
+                    from: source[channel],
+                    count: Int(buffer.frameLength)
+                )
+            }
+        } else if let source = buffer.int16ChannelData,
+                  let destination = copy.int16ChannelData {
+            for channel in 0..<Int(buffer.format.channelCount) {
+                destination[channel].update(
+                    from: source[channel],
+                    count: Int(buffer.frameLength)
+                )
+            }
+        } else {
+            return
+        }
+        continuation.yield(copy)
     }
 }
 
