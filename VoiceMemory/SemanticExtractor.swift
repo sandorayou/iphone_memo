@@ -69,6 +69,7 @@ actor SemanticExtractor {
         - 相対日時は、プロンプトで渡す現在日時を基準に変換する。
         - Memoは元会話を丸写しせず、後で使える形に短く整理する。
         - 1つの発言からTodoとMemoの両方が必要なら両方に出してよい。
+        - 「明日バイトに行く」「12時に仕事へ行く」のような予定・約束・行動もTodoとして保存する。
         """)
 
         let formatter = DateFormatter()
@@ -156,7 +157,7 @@ actor SemanticExtractor {
             .filter { !$0.isEmpty }
 
         for sentence in sentences {
-            let todoHints = ["しないと", "しておいて", "してください", "やっておいて", "やる", "提出", "送って", "連絡", "忘れず", "あとで"]
+            let todoHints = ["しないと", "しておいて", "してください", "やっておいて", "やる", "行く", "行かないと", "向かう", "出勤", "バイト", "仕事", "予定", "提出", "送って", "連絡", "忘れず", "あとで"]
             if todoHints.contains(where: sentence.contains) {
                 let due = fallbackDueDate(in: sentence, now: now)
                 let notify = due.map { sentence.contains("まで") ? midpoint(from: now, to: $0) : $0 }
