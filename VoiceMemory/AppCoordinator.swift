@@ -79,7 +79,6 @@ final class AppCoordinator: ObservableObject {
         extractionStatus = "内容を整理中…"
 
         // Keep model work independent from the cancellable debounce task.
-        extractionTask?.cancel()
         let task = Task.detached { [extractor] in
             await extractor.extract(from: text, now: referenceDate)
         }
