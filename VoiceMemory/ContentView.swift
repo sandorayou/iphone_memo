@@ -73,7 +73,7 @@ private struct TranscriptListView: View {
                 }
             }
             .searchable(text: $query, prompt: "10個のTXTを検索")
-            .navigationTitle("議事録（直近10分）")
+            .navigationTitle("議事録")
         }
     }
 }
