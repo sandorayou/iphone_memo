@@ -183,6 +183,7 @@ private struct MemoListView: View {
                             Text(memo.body)
                                 .font(.body)
                                 .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
                             Text(memo.createdAt.formatted(date: .abbreviated, time: .shortened))
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
