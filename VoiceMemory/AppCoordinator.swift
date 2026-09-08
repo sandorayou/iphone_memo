@@ -75,6 +75,7 @@ final class AppCoordinator: ObservableObject {
         extractionStatus = "内容を整理中…"
 
         let output = await extractor.extract(from: text, now: referenceDate)
+        store.appendAIStatus(output.source)
 
         for memo in output.memos {
             store.addMemo(title: memo.title, body: memo.body)

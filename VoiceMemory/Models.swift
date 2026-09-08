@@ -56,6 +56,7 @@ struct TranscriptEntry: Identifiable, Codable, Hashable {
 }
 
 struct ExtractionOutput: Sendable {
+    let source: String
     struct Todo: Sendable {
         let title: String
         let dueAt: Date?
@@ -68,5 +69,11 @@ struct ExtractionOutput: Sendable {
     }
 
     let todos: [Todo]
-        let memos: [Memo]
+    let memos: [Memo]
+
+    init(source: String = "unknown", todos: [Todo], memos: [Memo]) {
+        self.source = source
+        self.todos = todos
+        self.memos = memos
+    }
 }

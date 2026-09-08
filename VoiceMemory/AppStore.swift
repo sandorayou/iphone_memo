@@ -14,6 +14,7 @@ final class AppStore: ObservableObject {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let maxTranscriptBytes = 1_048_576
+    private let aiStatusURL: URL
 
     init() {
         let fm = FileManager.default
@@ -25,6 +26,7 @@ final class AppStore: ObservableObject {
         memosURL = root.appendingPathComponent("memos.json")
         transcriptURL = root.appendingPathComponent("transcript.log")
         recentTranscriptURL = root.appendingPathComponent("recent-transcript.json")
+        aiStatusURL = root.appendingPathComponent("ai-status.log")
 
         encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -118,6 +120,21 @@ final class AppStore: ObservableObject {
             try? data.write(to: transcriptURL, options: .atomic)
         }
         pruneTranscriptIfNeeded()
+    }
+
+    func appendAIStatus(_ source: String) {
+        let line = "[\(ISO8601DateFormatter().string(from: .now))] \(source)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: aiStatusURL) {
+            defer { try? handle.close() }
+            try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: aiStatusURL, options: .atomic)
+        }
+        if let data = try? Data(contentsOf: aiStatusURL), data.count > 64 * 1024 {
+            try? Data(data.suffix(64 * 1024)).write(to: aiStatusURL, options: .atomic)
+        }
     }
 
     private func pruneRecentTranscript() {

@@ -42,13 +42,13 @@ actor SemanticExtractor {
     func extract(from text: String, now: Date = .now) async -> ExtractionOutput {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else {
-            return ExtractionOutput(todos: [], memos: [])
+            return ExtractionOutput(source: "empty", todos: [], memos: [])
         }
 
         let model = SystemLanguageModel.default
         let japaneseLocale = Locale(identifier: "ja_JP")
         guard model.isAvailable, model.supportsLocale(japaneseLocale) else {
-            return heuristicFallback(clean, now: now)
+            return heuristicFallback(clean, now: now, source: "fallback_unavailable_\(String(describing: model.availability))")
         }
 
         let session = LanguageModelSession(instructions: """
@@ -104,11 +104,11 @@ actor SemanticExtractor {
                 return ExtractionOutput.Memo(title: title.isEmpty ? "メモ" : title, body: body)
             }
 
-            return ExtractionOutput(todos: todos, memos: memos)
+            return ExtractionOutput(source: "apple_intelligence", todos: todos, memos: memos)
         } catch {
             // The prototype should still do something useful on devices where the model
             // temporarily can't answer or when the prompt exceeds a model limit.
-            return heuristicFallback(clean, now: now)
+            return heuristicFallback(clean, now: now, source: "fallback_generation_failed")
         }
     }
 
@@ -142,7 +142,7 @@ actor SemanticExtractor {
         start.addingTimeInterval(end.timeIntervalSince(start) / 2)
     }
 
-    private func heuristicFallback(_ text: String, now: Date) -> ExtractionOutput {
+    private func heuristicFallback(_ text: String, now: Date, source: String) -> ExtractionOutput {
         // Intentionally conservative fallback. It is only for testing when Apple Intelligence
         // isn't available; the main path uses Foundation Models.
         var todos: [ExtractionOutput.Todo] = []
@@ -170,7 +170,7 @@ actor SemanticExtractor {
             }
         }
 
-        return ExtractionOutput(todos: Array(todos.prefix(5)), memos: Array(memos.prefix(5)))
+        return ExtractionOutput(source: source, todos: Array(todos.prefix(5)), memos: Array(memos.prefix(5)))
     }
 
     private func fallbackDueDate(in text: String, now: Date) -> Date? {
