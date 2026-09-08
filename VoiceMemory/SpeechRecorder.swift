@@ -180,8 +180,12 @@ final class SpeechRecorder: ObservableObject {
             }
         }
 
+        // AVAudioEngine invokes this callback on a realtime audio queue, not on
+        // the MainActor. Keep the callback completely actor-independent;
+        // touching the @MainActor recorder here causes a Swift runtime trap.
+        let audioContinuation = continuation
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-            continuation.yield(buffer)
+            audioContinuation.yield(buffer)
         }
 
         tapInstalled = true
