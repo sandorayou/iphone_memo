@@ -154,6 +154,17 @@ final class AppStore: ObservableObject {
         aiStatusLog = (try? String(contentsOf: aiStatusURL, encoding: .utf8)) ?? aiStatusLog
     }
 
+    func searchTranscript(_ query: String) -> [String] {
+        let key = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return [] }
+        let root = transcriptURL.deletingLastPathComponent()
+        let files = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "txt" && $0.lastPathComponent.hasPrefix("transcript-") }
+        return files.flatMap { url in
+            (try? String(contentsOf: url, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? []
+        }.filter { $0.localizedCaseInsensitiveContains(key) }
+    }
+
     private func pruneRecentTranscript() {
         let threshold = Date().addingTimeInterval(-10 * 60)
         recentTranscript = recentTranscript.filter { $0.createdAt >= threshold }

@@ -49,11 +49,21 @@ private struct AIStatusLogView: View {
 
 private struct TranscriptListView: View {
     @ObservedObject var store: AppStore
+    @State private var query = ""
 
     var body: some View {
         NavigationStack {
             List {
-                if store.recentTranscript.isEmpty {
+                if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let results = store.searchTranscript(query)
+                    if results.isEmpty {
+                        ContentUnavailableView("該当する議事録はありません", systemImage: "magnifyingglass")
+                    } else {
+                        ForEach(Array(results.enumerated()), id: \.offset) { _, line in
+                            Text(line).textSelection(.enabled)
+                        }
+                    }
+                } else if store.recentTranscript.isEmpty {
                     ContentUnavailableView("直近10分の会話はありません", systemImage: "text.bubble")
                 } else {
                     ForEach(store.recentTranscript) { entry in
@@ -62,6 +72,7 @@ private struct TranscriptListView: View {
                     }
                 }
             }
+            .searchable(text: $query, prompt: "10個のTXTを検索")
             .navigationTitle("議事録（直近10分）")
         }
     }
