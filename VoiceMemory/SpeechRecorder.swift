@@ -15,6 +15,7 @@ final class SpeechRecorder: ObservableObject {
     private var transcriber: SpeechTranscriber?
     private var dictationTranscriber: DictationTranscriber?
     private var analyzer: SpeechAnalyzer?
+    private var inputConverter: AnalyzerInputConverter?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var analysisTask: Task<Void, Never>?
     private var resultTask: Task<Void, Never>?
@@ -141,9 +142,14 @@ final class SpeechRecorder: ObservableObject {
         }
 
         let analyzer = SpeechAnalyzer(modules: [module])
+        guard let audioFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else {
+            throw RecorderError.speechAssetsUnavailable
+        }
+        let inputConverter = AnalyzerInputConverter(analyzerFormat: audioFormat)
         let (inputSequence, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
 
         self.analyzer = analyzer
+        self.inputConverter = inputConverter
         self.inputBuilder = inputBuilder
 
         analysisTask = Task { [weak self] in
@@ -191,8 +197,15 @@ final class SpeechRecorder: ObservableObject {
     }
 
     private func pushAudioBuffer(_ buffer: AVAudioPCMBuffer) async {
-        guard let inputBuilder else { return }
-        inputBuilder.yield(AnalyzerInput(buffer: buffer))
+        guard let inputBuilder, let inputConverter else { return }
+        do {
+            let inputs = try inputConverter.convert(buffer, at: nil)
+            for input in inputs {
+                inputBuilder.yield(input)
+            }
+        } catch {
+            errorText = "音声形式の変換に失敗しました: \(error.localizedDescription)"
+        }
     }
 
     private func stopInternal() async {
@@ -212,6 +225,11 @@ final class SpeechRecorder: ObservableObject {
         audioPumpTask = nil
 
         if let inputBuilder {
+            if let inputConverter, let inputs = try? inputConverter.flush() {
+                for input in inputs {
+                    inputBuilder.yield(input)
+                }
+            }
             inputBuilder.finish()
         }
 
@@ -225,6 +243,7 @@ final class SpeechRecorder: ObservableObject {
         transcriber = nil
         dictationTranscriber = nil
         analyzer = nil
+        inputConverter = nil
 
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
