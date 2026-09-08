@@ -41,6 +41,9 @@ final class AppCoordinator: ObservableObject {
 
     private func receiveFinalTranscript(_ text: String) {
         store.appendTranscript(text)
+        if let memoID = store.findMemo(for: text) {
+            store.selectedMemoID = memoID
+        }
         if pendingText.isEmpty { pendingReferenceDate = .now }
         if !pendingText.isEmpty { pendingText += "\n" }
         pendingText += text

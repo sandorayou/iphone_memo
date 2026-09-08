@@ -7,6 +7,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var memos: [MemoItem] = []
     @Published private(set) var recentTranscript: [TranscriptEntry] = []
     @Published private(set) var aiStatusLog = ""
+    @Published var selectedMemoID: UUID?
 
     private let todosURL: URL
     private let memosURL: URL
@@ -78,6 +79,18 @@ final class AppStore: ObservableObject {
 
         memos.insert(MemoItem(title: cleanTitle.isEmpty ? "メモ" : cleanTitle, body: cleanBody), at: 0)
         persistMemos()
+    }
+
+    func findMemo(for question: String) -> UUID? {
+        let triggers = ["どうする", "やり方", "方法", "教えて", "何だっけ", "どうやる"]
+        guard triggers.contains(where: question.contains) else { return nil }
+        let terms = question.split { $0 == " " || $0 == "　" || $0 == "？" || $0 == "?" }
+            .map(String.init).filter { $0.count >= 2 }
+        guard let memo = memos.max(by: { lhs, rhs in
+            terms.filter { lhs.title.contains($0) || lhs.body.contains($0) }.count < terms.filter { rhs.title.contains($0) || rhs.body.contains($0) }.count
+        }) else { return nil }
+        let score = terms.filter { memo.title.contains($0) || memo.body.contains($0) }.count
+        return score > 0 ? memo.id : nil
     }
 
     func deleteTodos(at offsets: IndexSet) {

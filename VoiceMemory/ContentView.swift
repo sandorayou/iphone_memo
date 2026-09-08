@@ -2,9 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var coordinator = AppCoordinator()
+    @State private var selectedTab = 0
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             RecordingView(coordinator: coordinator)
                 .tabItem { Label("記録", systemImage: "mic.fill") }
 
@@ -13,12 +14,18 @@ struct ContentView: View {
 
             MemoListView(store: coordinator.store)
                 .tabItem { Label("メモ", systemImage: "note.text") }
+                .tag(2)
 
             TranscriptListView(store: coordinator.store)
                 .tabItem { Label("議事録", systemImage: "text.bubble") }
+                .tag(3)
 
             AIStatusLogView(store: coordinator.store)
                 .tabItem { Label("ログ", systemImage: "doc.text.magnifyingglass") }
+                .tag(4)
+        }
+        .onChange(of: coordinator.store.selectedMemoID) { _, newValue in
+            if newValue != nil { selectedTab = 2 }
         }
     }
 }
@@ -188,6 +195,8 @@ private struct MemoListView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
+                        .background(store.selectedMemoID == memo.id ? Color.yellow.opacity(0.35) : .clear)
+                        .id(memo.id)
                         .padding(.vertical, 4)
                     }
                     .onDelete(perform: store.deleteMemos)
