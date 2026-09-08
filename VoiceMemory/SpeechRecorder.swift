@@ -15,7 +15,8 @@ final class SpeechRecorder: ObservableObject {
     private var transcriber: SpeechTranscriber?
     private var dictationTranscriber: DictationTranscriber?
     private var analyzer: SpeechAnalyzer?
-    private var inputConverter: AnalyzerInputConverter?
+    private var analyzerFormat: AVAudioFormat?
+    private var audioConverter: AVAudioConverter?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var analysisTask: Task<Void, Never>?
     private var resultTask: Task<Void, Never>?
@@ -145,11 +146,10 @@ final class SpeechRecorder: ObservableObject {
         guard let audioFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else {
             throw RecorderError.speechAssetsUnavailable
         }
-        let inputConverter = AnalyzerInputConverter(analyzerFormat: audioFormat)
         let (inputSequence, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
 
         self.analyzer = analyzer
-        self.inputConverter = inputConverter
+        self.analyzerFormat = audioFormat
         self.inputBuilder = inputBuilder
 
         analysisTask = Task { [weak self] in
@@ -197,11 +197,32 @@ final class SpeechRecorder: ObservableObject {
     }
 
     private func pushAudioBuffer(_ buffer: AVAudioPCMBuffer) async {
-        guard let inputBuilder, let inputConverter else { return }
+        guard let inputBuilder, let analyzerFormat else { return }
         do {
-            let inputs = try inputConverter.convert(buffer, at: nil)
-            for input in inputs {
-                inputBuilder.yield(input)
+            if audioConverter == nil || audioConverter?.outputFormat != analyzerFormat {
+                audioConverter = AVAudioConverter(from: buffer.format, to: analyzerFormat)
+            }
+            guard let audioConverter else { return }
+            let capacity = AVAudioFrameCount(
+                ceil(Double(buffer.frameLength) * analyzerFormat.sampleRate / buffer.format.sampleRate)
+            ) + 1024
+            guard let converted = AVAudioPCMBuffer(
+                pcmFormat: analyzerFormat,
+                frameCapacity: capacity
+            ) else { return }
+            var supplied = false
+            var conversionError: NSError?
+            audioConverter.convert(to: converted, error: &conversionError) { _, status in
+                if supplied {
+                    status.pointee = .noDataNow
+                    return nil
+                }
+                supplied = true
+                status.pointee = .haveData
+                return buffer
+            }
+            if conversionError == nil, converted.frameLength > 0 {
+                inputBuilder.yield(AnalyzerInput(buffer: converted))
             }
         } catch {
             errorText = "音声形式の変換に失敗しました: \(error.localizedDescription)"
@@ -225,11 +246,6 @@ final class SpeechRecorder: ObservableObject {
         audioPumpTask = nil
 
         if let inputBuilder {
-            if let inputConverter, let inputs = try? inputConverter.flush() {
-                for input in inputs {
-                    inputBuilder.yield(input)
-                }
-            }
             inputBuilder.finish()
         }
 
@@ -243,7 +259,8 @@ final class SpeechRecorder: ObservableObject {
         transcriber = nil
         dictationTranscriber = nil
         analyzer = nil
-        inputConverter = nil
+        analyzerFormat = nil
+        audioConverter = nil
 
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
