@@ -183,10 +183,7 @@ final class SpeechRecorder: ObservableObject {
         // AVAudioEngine invokes this callback on a realtime audio queue, not on
         // the MainActor. Keep the callback completely actor-independent;
         // touching the @MainActor recorder here causes a Swift runtime trap.
-        let audioContinuation = continuation
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-            audioContinuation.yield(buffer)
-        }
+        installRealtimeAudioTap(on: inputNode, format: format, continuation: continuation)
 
         tapInstalled = true
         audioEngine.prepare()
@@ -230,6 +227,19 @@ final class SpeechRecorder: ObservableObject {
         analyzer = nil
 
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+
+// This function must remain outside the @MainActor recorder. AVAudioEngine
+// delivers tap callbacks on its realtime queue, and an implicitly inherited
+// actor context makes Swift trap at runtime on iOS 26.
+private nonisolated func installRealtimeAudioTap(
+    on node: AVAudioInputNode,
+    format: AVAudioFormat,
+    continuation: AsyncStream<AVAudioPCMBuffer>.Continuation
+) {
+    node.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
+        continuation.yield(buffer)
     }
 }
 
