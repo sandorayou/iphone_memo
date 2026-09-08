@@ -30,12 +30,7 @@ private struct TranscriptListView: View {
                     ContentUnavailableView("直近10分の会話はありません", systemImage: "text.bubble")
                 } else {
                     ForEach(store.recentTranscript) { entry in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(entry.text)
-                            Text(entry.createdAt.formatted(date: .omitted, time: .shortened))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(entry.text)
                         .padding(.vertical, 3)
                     }
                 }
