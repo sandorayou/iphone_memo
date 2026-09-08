@@ -5,10 +5,12 @@ import Combine
 final class AppStore: ObservableObject {
     @Published private(set) var todos: [TodoItem] = []
     @Published private(set) var memos: [MemoItem] = []
+    @Published private(set) var recentTranscript: [TranscriptEntry] = []
 
     private let todosURL: URL
     private let memosURL: URL
     private let transcriptURL: URL
+    private let recentTranscriptURL: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let maxTranscriptBytes = 1_048_576
@@ -22,6 +24,7 @@ final class AppStore: ObservableObject {
         todosURL = root.appendingPathComponent("todos.json")
         memosURL = root.appendingPathComponent("memos.json")
         transcriptURL = root.appendingPathComponent("transcript.log")
+        recentTranscriptURL = root.appendingPathComponent("recent-transcript.json")
 
         encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -98,6 +101,9 @@ final class AppStore: ObservableObject {
     func appendTranscript(_ text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
+        recentTranscript.append(TranscriptEntry(text: clean))
+        pruneRecentTranscript()
+        persistRecentTranscript()
         let stamp = ISO8601DateFormatter().string(from: .now)
         let line = "[\(stamp)] \(clean)\n"
         guard let data = line.data(using: .utf8) else { return }
@@ -114,6 +120,16 @@ final class AppStore: ObservableObject {
         pruneTranscriptIfNeeded()
     }
 
+    private func pruneRecentTranscript() {
+        let threshold = Date().addingTimeInterval(-10 * 60)
+        recentTranscript = recentTranscript.filter { $0.createdAt >= threshold }
+    }
+
+    private func persistRecentTranscript() {
+        guard let data = try? encoder.encode(recentTranscript) else { return }
+        try? data.write(to: recentTranscriptURL, options: .atomic)
+    }
+
     private func pruneTranscriptIfNeeded() {
         guard let data = try? Data(contentsOf: transcriptURL), data.count > maxTranscriptBytes else { return }
         let retained = data.suffix(maxTranscriptBytes)
@@ -127,6 +143,10 @@ final class AppStore: ObservableObject {
         }
         if let data = try? Data(contentsOf: memosURL), let value = try? decoder.decode([MemoItem].self, from: data) {
             memos = value
+        }
+        if let data = try? Data(contentsOf: recentTranscriptURL), let value = try? decoder.decode([TranscriptEntry].self, from: data) {
+            recentTranscript = value
+            pruneRecentTranscript()
         }
     }
 

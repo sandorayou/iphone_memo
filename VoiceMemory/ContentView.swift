@@ -13,6 +13,34 @@ struct ContentView: View {
 
             MemoListView(store: coordinator.store)
                 .tabItem { Label("メモ", systemImage: "note.text") }
+
+            TranscriptListView(store: coordinator.store)
+                .tabItem { Label("議事録", systemImage: "text.bubble") }
+        }
+    }
+}
+
+private struct TranscriptListView: View {
+    @ObservedObject var store: AppStore
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if store.recentTranscript.isEmpty {
+                    ContentUnavailableView("直近10分の会話はありません", systemImage: "text.bubble")
+                } else {
+                    ForEach(store.recentTranscript) { entry in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(entry.text)
+                            Text(entry.createdAt.formatted(date: .omitted, time: .shortened))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+            }
+            .navigationTitle("議事録（直近10分）")
         }
     }
 }

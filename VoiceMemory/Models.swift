@@ -43,6 +43,18 @@ struct MemoItem: Identifiable, Codable, Hashable {
     }
 }
 
+struct TranscriptEntry: Identifiable, Codable, Hashable {
+    let id: UUID
+    let text: String
+    let createdAt: Date
+
+    init(id: UUID = UUID(), text: String, createdAt: Date = .now) {
+        self.id = id
+        self.text = text
+        self.createdAt = createdAt
+    }
+}
+
 struct ExtractionOutput: Sendable {
     struct Todo: Sendable {
         let title: String
