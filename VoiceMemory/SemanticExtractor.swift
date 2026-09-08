@@ -108,7 +108,9 @@ actor SemanticExtractor {
         } catch {
             // The prototype should still do something useful on devices where the model
             // temporarily can't answer or when the prompt exceeds a model limit.
-            return heuristicFallback(clean, now: now, source: "fallback_generation_failed")
+            let nsError = error as NSError
+            let detail = "fallback_generation_failed domain=\(nsError.domain) code=\(nsError.code) message=\(nsError.localizedDescription)"
+            return heuristicFallback(clean, now: now, source: detail)
         }
     }
 
