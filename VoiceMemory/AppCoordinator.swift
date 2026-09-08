@@ -15,6 +15,7 @@ final class AppCoordinator: ObservableObject {
     private var pendingReferenceDate: Date?
     private var debounceTask: Task<Void, Never>?
     private var isExtracting = false
+    private var extractionTask: Task<ExtractionOutput, Never>?
 
     init(store: AppStore = AppStore(), recorder: SpeechRecorder = SpeechRecorder()) {
         self.store = store
@@ -77,7 +78,14 @@ final class AppCoordinator: ObservableObject {
         isExtracting = true
         extractionStatus = "内容を整理中…"
 
-        let output = await extractor.extract(from: text, now: referenceDate)
+        // Keep model work independent from the cancellable debounce task.
+        extractionTask?.cancel()
+        let task = Task.detached { [extractor] in
+            await extractor.extract(from: text, now: referenceDate)
+        }
+        extractionTask = task
+        let output = await task.value
+        extractionTask = nil
         store.appendAIStatus(output.source)
 
         for memo in output.memos {

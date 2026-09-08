@@ -48,7 +48,7 @@ actor SemanticExtractor {
         let model = SystemLanguageModel.default
         let japaneseLocale = Locale(identifier: "ja_JP")
         guard model.isAvailable, model.supportsLocale(japaneseLocale) else {
-            return heuristicFallback(clean, now: now, source: "fallback_unavailable_\(String(describing: model.availability))")
+            return ExtractionOutput(source: "apple_intelligence_unavailable_\(String(describing: model.availability))", todos: [], memos: [])
         }
 
         let session = LanguageModelSession(instructions: """
@@ -111,7 +111,7 @@ actor SemanticExtractor {
             // temporarily can't answer or when the prompt exceeds a model limit.
             let nsError = error as NSError
             let detail = "fallback_generation_failed domain=\(nsError.domain) code=\(nsError.code) message=\(nsError.localizedDescription)"
-            return heuristicFallback(clean, now: now, source: detail)
+            return ExtractionOutput(source: detail, todos: [], memos: [])
         }
     }
 
