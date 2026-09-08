@@ -16,6 +16,8 @@ final class AppStore: ObservableObject {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let maxTranscriptBytes = 1_048_576
+    private let transcriptFileLimit = 10
+    private let transcriptSegmentBytes = 10 * 1024 * 1024
     private let aiStatusURL: URL
 
     init() {
@@ -26,7 +28,7 @@ final class AppStore: ObservableObject {
 
         todosURL = root.appendingPathComponent("todos.json")
         memosURL = root.appendingPathComponent("memos.json")
-        transcriptURL = root.appendingPathComponent("transcript.log")
+        transcriptURL = root.appendingPathComponent("transcript-current.txt")
         recentTranscriptURL = root.appendingPathComponent("recent-transcript.json")
         aiStatusURL = root.appendingPathComponent("ai-status.log")
 
@@ -133,7 +135,7 @@ final class AppStore: ObservableObject {
         } else {
             try? data.write(to: transcriptURL, options: .atomic)
         }
-        pruneTranscriptIfNeeded()
+        rotateTranscriptIfNeeded()
     }
 
     func appendAIStatus(_ source: String) {
@@ -162,11 +164,23 @@ final class AppStore: ObservableObject {
         try? data.write(to: recentTranscriptURL, options: .atomic)
     }
 
-    private func pruneTranscriptIfNeeded() {
-        guard let data = try? Data(contentsOf: transcriptURL), data.count > maxTranscriptBytes else { return }
-        let retained = data.suffix(maxTranscriptBytes)
-        guard let newline = retained.firstIndex(of: 0x0A) else { return }
-        try? Data(retained.suffix(from: retained.index(after: newline))).write(to: transcriptURL, options: .atomic)
+    private func rotateTranscriptIfNeeded() {
+        guard let data = try? Data(contentsOf: transcriptURL), data.count > transcriptSegmentBytes else { return }
+        let fm = FileManager.default
+        let root = transcriptURL.deletingLastPathComponent()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        let archive = root.appendingPathComponent("transcript-\(formatter.string(from: .now)).txt")
+        try? fm.moveItem(at: transcriptURL, to: archive)
+        let files = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles)) ?? []
+        let transcripts = files.filter { $0.lastPathComponent.hasPrefix("transcript-") && $0.pathExtension == "txt" }
+            .sorted { (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast) ?? .distantPast < (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast) ?? .distantPast }
+        if transcripts.count >= transcriptFileLimit {
+            for old in transcripts.prefix(transcripts.count - transcriptFileLimit + 1) {
+                try? fm.removeItem(at: old)
+            }
+        }
     }
 
     private func load() {
