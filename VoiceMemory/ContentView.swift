@@ -99,16 +99,6 @@ private struct RecordingView: View {
                 Text(recorder.statusText)
                     .font(.title3.bold())
 
-                if coordinator.pendingCharacters > 0 {
-                    Text("未整理の文字: \(coordinator.pendingCharacters)字")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(coordinator.extractionStatus)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
                 if let error = recorder.errorText {
                     Text(error)
                         .font(.footnote)
