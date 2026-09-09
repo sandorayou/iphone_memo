@@ -9,13 +9,6 @@ struct ContentView: View {
             RecordingView(coordinator: coordinator)
                 .tabItem { Label("記録", systemImage: "mic.fill") }
 
-            TodoListView(store: coordinator.store)
-                .tabItem { Label("やること", systemImage: "checklist") }
-
-            MemoListView(store: coordinator.store)
-                .tabItem { Label("メモ", systemImage: "note.text") }
-                .tag(2)
-
             TranscriptListView(store: coordinator.store)
                 .tabItem { Label("議事録", systemImage: "text.bubble") }
                 .tag(3)
@@ -23,9 +16,6 @@ struct ContentView: View {
             AIStatusLogView(store: coordinator.store)
                 .tabItem { Label("ログ", systemImage: "doc.text.magnifyingglass") }
                 .tag(4)
-        }
-        .onChange(of: coordinator.store.selectedMemoID) { _, newValue in
-            if newValue != nil { selectedTab = 2 }
         }
     }
 }
