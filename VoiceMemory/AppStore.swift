@@ -165,6 +165,15 @@ final class AppStore: ObservableObject {
         }.filter { $0.localizedCaseInsensitiveContains(key) }
     }
 
+    func transcriptContext(limit: Int = 12000) -> String {
+        let root = transcriptURL.deletingLastPathComponent()
+        let files = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "txt" && $0.lastPathComponent.hasPrefix("transcript-") }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        let text = files.compactMap { try? String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\n")
+        return String(text.suffix(limit))
+    }
+
     private func pruneRecentTranscript() {
         let threshold = Date().addingTimeInterval(-10 * 60)
         recentTranscript = recentTranscript.filter { $0.createdAt >= threshold }
