@@ -13,6 +13,14 @@ struct ContentView: View {
                 .tabItem { Label("議事録", systemImage: "text.bubble") }
                 .tag(3)
 
+            TodoListView(store: coordinator.store)
+                .tabItem { Label("やること", systemImage: "checklist") }
+                .tag(4)
+
+            MemoListView(store: coordinator.store)
+                .tabItem { Label("メモ", systemImage: "note.text") }
+                .tag(5)
+
             AIStatusLogView(store: coordinator.store)
                 .tabItem { Label("ログ", systemImage: "doc.text.magnifyingglass") }
                 .tag(4)
